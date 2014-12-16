@@ -32,12 +32,11 @@ namespace Thinktecture.IdentityServer.Tests.Connect.Setup
                         ClientId = "codeclient",
                         ClientSecret = "secret",
                         Flow = Flows.AuthorizationCode,
-                        ApplicationType = ApplicationTypes.Web,
                         RequireConsent = false,
                     
-                        RedirectUris = new List<Uri>
+                        RedirectUris = new List<string>
                         {
-                            new Uri("https://server/cb"),
+                            "https://server/cb",
                         },
 
                         AuthorizationCodeLifetime = 60
@@ -49,12 +48,11 @@ namespace Thinktecture.IdentityServer.Tests.Connect.Setup
                         ClientId = "implicitclient",
                         ClientSecret = "secret",
                         Flow = Flows.Implicit,
-                        ApplicationType = ApplicationTypes.Native,
                         RequireConsent = false,
                     
-                        RedirectUris = new List<Uri>
+                        RedirectUris = new List<string>
                         {
-                            new Uri("oob://implicit/cb")
+                            "oob://implicit/cb"
                         },
                     },
                     new Client
@@ -64,7 +62,6 @@ namespace Thinktecture.IdentityServer.Tests.Connect.Setup
                         ClientId = "codeclient_restricted",
                         ClientSecret = "secret",
                         Flow = Flows.AuthorizationCode,
-                        ApplicationType = ApplicationTypes.Web,
                         RequireConsent = false,
 
                         ScopeRestrictions = new List<string>
@@ -72,9 +69,9 @@ namespace Thinktecture.IdentityServer.Tests.Connect.Setup
                             "openid"
                         },
                     
-                        RedirectUris = new List<Uri>
+                        RedirectUris = new List<string>
                         {
-                            new Uri("https://server/cb"),
+                            "https://server/cb",
                         },
                     },
                     new Client

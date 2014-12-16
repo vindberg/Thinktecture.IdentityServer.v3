@@ -17,21 +17,45 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Thinktecture.IdentityModel;
-using Thinktecture.IdentityServer.Core.Connect;
+using Thinktecture.IdentityServer.Core.Validation;
+using Thinktecture.IdentityServer.Core.Extensions;
+using System.Security.Claims;
 
-namespace Thinktecture.IdentityServer.Core.Services
+namespace Thinktecture.IdentityServer.Core.Services.Default
 {
+    /// <summary>
+    /// Default custom token validator
+    /// </summary>
     public class DefaultCustomTokenValidator : ICustomTokenValidator
     {
-        private readonly IUserService _users;
+        /// <summary>
+        /// The user service
+        /// </summary>
+        protected readonly IUserService _users;
+
+        /// <summary>
+        /// The client store
+        /// </summary>
         private readonly IClientStore _clients;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DefaultCustomTokenValidator"/> class.
+        /// </summary>
+        /// <param name="users">The users store.</param>
+        /// <param name="clients">The client store.</param>
         public DefaultCustomTokenValidator(IUserService users, IClientStore clients)
         {
             _users = users;
             _clients = clients;
         }
 
+        /// <summary>
+        /// Custom validation logic for access tokens.
+        /// </summary>
+        /// <param name="result">The validation result so far.</param>
+        /// <returns>
+        /// The validation result
+        /// </returns>
         public async Task<TokenValidationResult> ValidateAccessTokenAsync(TokenValidationResult result)
         {
             if (result.IsError)
@@ -43,9 +67,14 @@ namespace Thinktecture.IdentityServer.Core.Services
             var subClaim = result.Claims.FirstOrDefault(c => c.Type == Constants.ClaimTypes.Subject);
             if (subClaim != null)
             {
-                var principal = Principal.Create("tokenvalidator", subClaim);
+                var principal = Principal.Create("tokenvalidator", result.Claims.ToArray());
 
-                if (! await _users.IsActiveAsync(principal))
+                if (result.ReferenceTokenId.IsPresent())
+                {
+                    principal.Identities.First().AddClaim(new Claim(Constants.ClaimTypes.ReferenceTokenId, result.ReferenceTokenId));
+                }
+
+                if (await _users.IsActiveAsync(principal) == false)
                 {
                     result.IsError = true;
                     result.Error = Constants.ProtectedResourceErrors.ExpiredToken;
@@ -73,15 +102,22 @@ namespace Thinktecture.IdentityServer.Core.Services
             return result;
         }
 
+        /// <summary>
+        /// Custom validation logic for identity tokens.
+        /// </summary>
+        /// <param name="result">The validation result so far.</param>
+        /// <returns>
+        /// The validation result
+        /// </returns>
         public async Task<TokenValidationResult> ValidateIdentityTokenAsync(TokenValidationResult result)
         {
             // make sure user is still active (if sub claim is present)
             var subClaim = result.Claims.FirstOrDefault(c => c.Type == Constants.ClaimTypes.Subject);
             if (subClaim != null)
             {
-                var principal = Principal.Create("tokenvalidator", subClaim);
+                var principal = Principal.Create("tokenvalidator", result.Claims.ToArray());
 
-                if (!await _users.IsActiveAsync(principal))
+                if (await _users.IsActiveAsync(principal) == false)
                 {
                     result.IsError = true;
                     result.Error = Constants.ProtectedResourceErrors.ExpiredToken;

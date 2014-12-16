@@ -16,8 +16,8 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Claims;
-using Thinktecture.IdentityServer.Core.Connect;
 using Thinktecture.IdentityServer.Core.Logging;
+using Thinktecture.IdentityServer.Core.Validation;
 
 namespace Thinktecture.IdentityServer.Core.Models
 {
@@ -33,6 +33,7 @@ namespace Thinktecture.IdentityServer.Core.Models
         public bool IncludeAllIdentityClaims { get; set; }
         public string AccessTokenToHash { get; set; }
         public string AuthorizationCodeToHash { get; set; }
+        public string Nonce { get; set; }
 
         public void Validate()
         {

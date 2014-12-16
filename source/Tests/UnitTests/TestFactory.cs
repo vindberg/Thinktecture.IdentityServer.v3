@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 using Thinktecture.IdentityServer.Core.Configuration;
 using Thinktecture.IdentityServer.Core.Services;
 using Thinktecture.IdentityServer.Core.Services.InMemory;
@@ -28,8 +29,8 @@ namespace Thinktecture.IdentityServer.Tests
             
             var fact = new IdentityServerServiceFactory
             {
-                ScopeStore = Registration.RegisterFactory<IScopeStore>(() => scopes),
-                ClientStore = Registration.RegisterFactory<IClientStore>(() => clients)
+                ScopeStore = Registration.RegisterFactory<IScopeStore>((resolver) => scopes),
+                ClientStore = Registration.RegisterFactory<IClientStore>((resolver) => clients)
             };
 
             return fact;

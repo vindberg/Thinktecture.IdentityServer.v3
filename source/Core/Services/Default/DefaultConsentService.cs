@@ -14,22 +14,30 @@
  * limitations under the License.
  */
 using System;
-/*
- * Copyright (c) Dominick Baier, Brock Allen.  All rights reserved.
- * see license
- */
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Thinktecture.IdentityServer.Core.Extensions;
 using Thinktecture.IdentityServer.Core.Models;
 
-namespace Thinktecture.IdentityServer.Core.Services
+namespace Thinktecture.IdentityServer.Core.Services.Default
 {
+    /// <summary>
+    /// Default consent service
+    /// </summary>
     public class DefaultConsentService : IConsentService
     {
-        IConsentStore _store;
+        /// <summary>
+        /// The consent store
+        /// </summary>
+        protected readonly IConsentStore _store;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="DefaultConsentService"/> class.
+        /// </summary>
+        /// <param name="store">The consent store.</param>
+        /// <exception cref="System.ArgumentNullException">store</exception>
         public DefaultConsentService(IConsentStore store)
         {
             if (store == null) throw new ArgumentNullException("store");
@@ -47,7 +55,25 @@ namespace Thinktecture.IdentityServer.Core.Services
                 return false;
             }
 
-            return await _store.RequiresConsentAsync(client.ClientId, user.GetSubjectId(), scopes);
+            // TODO: validate that this is a correct statement
+            if (!client.AllowRememberConsent)
+            {
+                return true;
+            }
+
+            if (scopes == null || !scopes.Any())
+            {
+                return false;
+            }
+            
+            var consent = await _store.LoadAsync(user.GetSubjectId(), client.ClientId);
+            if (consent != null && consent.Scopes != null)
+            {
+                var intersect = scopes.Intersect(consent.Scopes);
+                return !(scopes.Count() == intersect.Count());
+            }
+
+            return true;
         }
 
         public async Task UpdateConsentAsync(Client client, ClaimsPrincipal user, IEnumerable<string> scopes)
@@ -57,7 +83,23 @@ namespace Thinktecture.IdentityServer.Core.Services
 
             if (client.AllowRememberConsent)
             {
-                await _store.UpdateConsentAsync(client.ClientId, user.GetSubjectId(), scopes);
+                var subject = user.GetSubjectId();
+                var clientId = client.ClientId;
+
+                if (scopes != null && scopes.Any())
+                {
+                    var consent = new Consent
+                    {
+                        Subject = subject,
+                        ClientId = clientId,
+                        Scopes = scopes
+                    };
+                    await _store.UpdateAsync(consent);
+                }
+                else
+                {
+                    await _store.RevokeAsync(subject, clientId);
+                }
             }
         }
     }

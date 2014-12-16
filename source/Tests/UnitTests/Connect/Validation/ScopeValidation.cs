@@ -14,14 +14,18 @@
  * limitations under the License.
  */
 
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
-using Thinktecture.IdentityServer.Core.Connect;
+using FluentAssertions;
 using Thinktecture.IdentityServer.Core.Models;
+using Thinktecture.IdentityServer.Core.Validation;
+using Xunit;
+using System.Threading.Tasks;
+using Thinktecture.IdentityServer.Core.Services;
+using Thinktecture.IdentityServer.Core.Services.InMemory;
 
 namespace Thinktecture.IdentityServer.Tests.Connect.Validation.Scopes
 {
-    [TestClass]
+    
     public class ScopeValidation
     {
         const string Category = "Scope Validation";
@@ -73,169 +77,172 @@ namespace Thinktecture.IdentityServer.Tests.Connect.Validation.Scopes
                 }
             };
 
-        [TestMethod]
-        [TestCategory(Category)]
+        IScopeStore _store;
+
+        public ScopeValidation()
+        {
+            _store = new InMemoryScopeStore(_allScopes);
+        }
+
+        [Fact]
+        [Trait("Category", Category)]
         public void Parse_Scopes_with_Empty_Scope_List()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("");
+            var scopes = ScopeValidator.ParseScopesString("");
 
-            Assert.IsNull(scopes);
+            scopes.Should().BeNull();
         }
 
-        [TestMethod]
-        [TestCategory(Category)]
+        [Fact]
+        [Trait("Category", Category)]
         public void Parse_Scopes_with_Sorting()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("scope3 scope2 scope1");
-            
-            Assert.AreEqual(scopes.Count, 3);
+            var scopes = ScopeValidator.ParseScopesString("scope3 scope2 scope1");
 
-            Assert.AreEqual(scopes[0], "scope1");
-            Assert.AreEqual(scopes[1], "scope2");
-            Assert.AreEqual(scopes[2], "scope3");
+            scopes.Count.Should().Be(3);
+
+            scopes[0].Should().Be("scope1");
+            scopes[1].Should().Be("scope2");
+            scopes[2].Should().Be("scope3");
         }
 
-        [TestMethod]
-        [TestCategory(Category)]
+        [Fact]
+        [Trait("Category", Category)]
         public void Parse_Scopes_with_Extra_Spaces()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("   scope3     scope2     scope1   ");
+            var scopes = ScopeValidator.ParseScopesString("   scope3     scope2     scope1   ");
 
-            Assert.AreEqual(scopes.Count, 3);
+            scopes.Count.Should().Be(3);
 
-            Assert.AreEqual(scopes[0], "scope1");
-            Assert.AreEqual(scopes[1], "scope2");
-            Assert.AreEqual(scopes[2], "scope3");
+            scopes[0].Should().Be("scope1");
+            scopes[1].Should().Be("scope2");
+            scopes[2].Should().Be("scope3");
         }
 
-        [TestMethod]
-        [TestCategory(Category)]
+        [Fact]
+        [Trait("Category", Category)]
         public void Parse_Scopes_with_Duplicate_Scope()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("scope2 scope1 scope2");
+            var scopes = ScopeValidator.ParseScopesString("scope2 scope1 scope2");
 
-            Assert.AreEqual(scopes.Count, 2);
+            scopes.Count.Should().Be(2);
 
-            Assert.AreEqual(scopes[0], "scope1");
-            Assert.AreEqual(scopes[1], "scope2");
+            scopes[0].Should().Be("scope1");
+            scopes[1].Should().Be("scope2");
         }
 
-        [TestMethod]
-        [TestCategory(Category)]
-        public void All_Scopes_Valid()
+        [Fact]
+        [Trait("Category", Category)]
+        public async Task All_Scopes_Valid()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("openid email resource1 resource2");
+            var scopes = ScopeValidator.ParseScopesString("openid email resource1 resource2");
+            
+            var validator = new ScopeValidator(_store);
+            var result = await validator.AreScopesValidAsync(scopes);
 
-            var result = validator.AreScopesValid(scopes, _allScopes);
-
-            Assert.IsTrue(result);
+            result.Should().BeTrue();
         }
 
-        [TestMethod]
-        [TestCategory(Category)]
-        public void Invalid_Scope()
+        [Fact]
+        [Trait("Category", Category)]
+        public async Task Invalid_Scope()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("openid email resource1 resource2 unknown");
+            var scopes = ScopeValidator.ParseScopesString("openid email resource1 resource2 unknown");
+            
+            var validator = new ScopeValidator(_store);
+            var result = await validator.AreScopesValidAsync(scopes);
 
-            var result = validator.AreScopesValid(scopes, _allScopes);
-
-            Assert.IsFalse(result);
+            result.Should().BeFalse();
         }
 
-        [TestMethod]
-        [TestCategory(Category)]
-        public void Disabled_Scope()
+        [Fact]
+        [Trait("Category", Category)]
+        public async Task Disabled_Scope()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("openid email resource1 resource2 disabled");
+            var scopes = ScopeValidator.ParseScopesString("openid email resource1 resource2 disabled");
+            
+            var validator = new ScopeValidator(_store);
+            var result = await validator.AreScopesValidAsync(scopes);
 
-            var result = validator.AreScopesValid(scopes, _allScopes);
-
-            Assert.IsFalse(result);
+            result.Should().BeFalse();
         }
 
-        [TestMethod]
-        [TestCategory(Category)]
+        [Fact]
+        [Trait("Category", Category)]
         public void All_Scopes_Allowed_For_Unrestricted_Client()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("openid email resource1 resource2");
+            var scopes = ScopeValidator.ParseScopesString("openid email resource1 resource2");
 
+            var validator = new ScopeValidator(_store);
             var result = validator.AreScopesAllowed(_unrestrictedClient, scopes);
 
-            Assert.IsTrue(result);
+            result.Should().BeTrue();
         }
 
-        [TestMethod]
-        [TestCategory(Category)]
+        [Fact]
+        [Trait("Category", Category)]
         public void All_Scopes_Allowed_For_Restricted_Client()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("openid resource1");
+            var scopes = ScopeValidator.ParseScopesString("openid resource1");
 
+            var validator = new ScopeValidator(_store);
             var result = validator.AreScopesAllowed(_restrictedClient, scopes);
 
-            Assert.IsTrue(result);
+            result.Should().BeTrue();
         }
 
-        [TestMethod]
-        [TestCategory(Category)]
+        [Fact]
+        [Trait("Category", Category)]
         public void Restricted_Scopes()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("openid email resource1 resource2");
+            var scopes = ScopeValidator.ParseScopesString("openid email resource1 resource2");
 
+            var validator = new ScopeValidator(_store);
             var result = validator.AreScopesAllowed(_restrictedClient, scopes);
 
-            Assert.IsFalse(result);
+            result.Should().BeFalse();
         }
 
-        [TestMethod]
-        [TestCategory(Category)]
-        public void Contains_Resource_and_Identity_Scopes()
+        [Fact]
+        [Trait("Category", Category)]
+        public async Task Contains_Resource_and_Identity_Scopes()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("openid email resource1 resource2");
+            var scopes = ScopeValidator.ParseScopesString("openid email resource1 resource2");
+            
+            var validator = new ScopeValidator(_store);
+            var result = await validator.AreScopesValidAsync(scopes);
 
-            var result = validator.AreScopesValid(scopes, _allScopes);
-
-            Assert.IsTrue(result);
-            Assert.IsTrue(validator.ContainsOpenIdScopes);
-            Assert.IsTrue(validator.ContainsResourceScopes);
+            result.Should().BeTrue();
+            validator.ContainsOpenIdScopes.Should().BeTrue();
+            validator.ContainsResourceScopes.Should().BeTrue();
         }
 
-        [TestMethod]
-        [TestCategory(Category)]
-        public void Contains_Resource_Scopes_Only()
+        [Fact]
+        [Trait("Category", Category)]
+        public async Task Contains_Resource_Scopes_Only()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("resource1 resource2");
+            var scopes = ScopeValidator.ParseScopesString("resource1 resource2");
 
-            var result = validator.AreScopesValid(scopes, _allScopes);
+            var validator = new ScopeValidator(_store);
+            var result = await validator.AreScopesValidAsync(scopes);
 
-            Assert.IsTrue(result);
-            Assert.IsFalse(validator.ContainsOpenIdScopes);
-            Assert.IsTrue(validator.ContainsResourceScopes);
+            result.Should().BeTrue();
+            validator.ContainsOpenIdScopes.Should().BeFalse();
+            validator.ContainsResourceScopes.Should().BeTrue();
         }
 
-        [TestMethod]
-        [TestCategory(Category)]
-        public void Contains_Identity_Scopes_Only()
+        [Fact]
+        [Trait("Category", Category)]
+        public async Task Contains_Identity_Scopes_Only()
         {
-            var validator = new ScopeValidator();
-            var scopes = validator.ParseScopes("openid email");
+            var scopes = ScopeValidator.ParseScopesString("openid email");
+            
+            var validator = new ScopeValidator(_store);
+            var result = await validator.AreScopesValidAsync(scopes);
 
-            var result = validator.AreScopesValid(scopes, _allScopes);
-
-            Assert.IsTrue(result);
-            Assert.IsTrue(validator.ContainsOpenIdScopes);
-            Assert.IsFalse(validator.ContainsResourceScopes);
+            result.Should().BeTrue();
+            validator.ContainsOpenIdScopes.Should().BeTrue();
+            validator.ContainsResourceScopes.Should().BeFalse();
         }
     }
 }
